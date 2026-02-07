@@ -101,7 +101,7 @@ async function main() {
   // Single commodity price ($0.001)
   addEntrypoint({
     key: 'price',
-    description: 'Get current price for a commodity: wti, brent, natural_gas, copper, aluminum, wheat, corn, coffee, cotton, sugar',
+    description: 'Returns: {name, price, unit, date, category, description}. Commodities: wti, brent, natural_gas, copper, aluminum, wheat, corn, coffee, cotton, sugar',
     input: z.object({
       commodity: z.string().describe('Commodity name (e.g., wti, brent, natural_gas, copper, wheat)'),
       interval: z.enum(['daily', 'weekly', 'monthly']).optional().default('daily'),
@@ -146,7 +146,7 @@ async function main() {
   // All commodities ($0.005)
   addEntrypoint({
     key: 'all',
-    description: 'Get prices for all major commodities in one call',
+    description: 'Returns: {commodities: {wti: {name, price, unit, date}, brent: {...}, ...}, count, interval}. All 10 commodities in one call',
     input: z.object({
       interval: z.enum(['daily', 'weekly', 'monthly']).optional().default('daily'),
     }),
@@ -174,7 +174,7 @@ async function main() {
   // Historical prices ($0.002)
   addEntrypoint({
     key: 'historical',
-    description: 'Get historical prices for a commodity (up to 60 data points)',
+    description: 'Returns: {commodity, interval, dataPoints, history: [{date, price}, ...]}. Up to 60 data points, daily/weekly/monthly intervals',
     input: z.object({
       commodity: z.string().describe('Commodity name'),
       interval: z.enum(['daily', 'weekly', 'monthly']).optional().default('monthly'),
@@ -220,7 +220,7 @@ async function main() {
   // Global commodities index ($0.001)
   addEntrypoint({
     key: 'index',
-    description: 'Get the global commodities price index (IMF Primary Commodity Prices)',
+    description: 'Returns: {name, value, unit, date}. IMF Primary Commodity Price Index (global aggregate)',
     input: z.object({}),
     price: '0.001',
     handler: async () => {
@@ -246,7 +246,7 @@ async function main() {
   // Analysis endpoint - enriched data with signals ($0.003)
   addEntrypoint({
     key: 'analysis',
-    description: 'Get enriched analysis: current price, 7d/30d/90d changes, moving averages, volatility, and trend signals',
+    description: 'Returns: {current: {price, unit, date}, changes: {day7, day30, day90}, movingAverages: {ma7, ma30}, volatility: {daily, level}, signal: {vs7dma, vs30dma, trend}}',
     input: z.object({
       commodity: z.string().describe('Commodity name (e.g., wti, brent, natural_gas, copper, wheat)'),
     }),
