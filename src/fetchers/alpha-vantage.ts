@@ -135,3 +135,134 @@ export async function fetchHistorical(
     price: parseFloat(d.value),
   }));
 }
+
+export interface CommodityAnalysis {
+  commodity: string;
+  name: string;
+  category: string;
+  current: {
+    price: number;
+    unit: string;
+    date: string;
+  };
+  changes: {
+    day7: number | null;
+    day30: number | null;
+    day90: number | null;
+  };
+  movingAverages: {
+    ma7: number | null;
+    ma30: number | null;
+  };
+  volatility: {
+    daily: number | null;
+    level: 'low' | 'medium' | 'high' | 'unknown';
+  };
+  signal: {
+    vs7dma: 'above' | 'below' | 'at' | 'unknown';
+    vs30dma: 'above' | 'below' | 'at' | 'unknown';
+    trend: 'bullish' | 'bearish' | 'neutral' | 'unknown';
+  };
+}
+
+function calculateChange(current: number, previous: number): number {
+  return ((current - previous) / previous) * 100;
+}
+
+function calculateMA(prices: number[], period: number): number | null {
+  if (prices.length < period) return null;
+  const slice = prices.slice(0, period);
+  return slice.reduce((a, b) => a + b, 0) / period;
+}
+
+function calculateVolatility(prices: number[]): number | null {
+  if (prices.length < 7) return null;
+  const returns: number[] = [];
+  for (let i = 1; i < Math.min(prices.length, 30); i++) {
+    returns.push((prices[i - 1] - prices[i]) / prices[i]);
+  }
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+  const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+  return Math.sqrt(variance) * 100; // as percentage
+}
+
+function getVolatilityLevel(vol: number | null): 'low' | 'medium' | 'high' | 'unknown' {
+  if (vol === null) return 'unknown';
+  if (vol < 1) return 'low';
+  if (vol < 3) return 'medium';
+  return 'high';
+}
+
+function getSignal(current: number, ma: number | null): 'above' | 'below' | 'at' | 'unknown' {
+  if (ma === null) return 'unknown';
+  const diff = ((current - ma) / ma) * 100;
+  if (diff > 1) return 'above';
+  if (diff < -1) return 'below';
+  return 'at';
+}
+
+function getTrend(change7: number | null, change30: number | null): 'bullish' | 'bearish' | 'neutral' | 'unknown' {
+  if (change7 === null || change30 === null) return 'unknown';
+  if (change7 > 2 && change30 > 0) return 'bullish';
+  if (change7 < -2 && change30 < 0) return 'bearish';
+  return 'neutral';
+}
+
+export async function fetchAnalysis(commodity: string): Promise<CommodityAnalysis | null> {
+  const fn = COMMODITIES[commodity.toLowerCase()];
+  if (!fn) return null;
+
+  const info = COMMODITY_INFO[commodity.toLowerCase()];
+  
+  // Fetch daily data for analysis (need ~90 days)
+  const url = `${BASE_URL}?function=${fn}&interval=daily&apikey=${API_KEY}`;
+  const res = await fetch(url);
+  const data: CommodityData = await res.json();
+
+  if (!data.data || data.data.length === 0) return null;
+
+  const prices = data.data.slice(0, 90).map((d) => parseFloat(d.value));
+  const current = prices[0];
+  const latest = data.data[0];
+
+  // Calculate changes
+  const change7 = prices.length > 7 ? calculateChange(current, prices[7]) : null;
+  const change30 = prices.length > 30 ? calculateChange(current, prices[30]) : null;
+  const change90 = prices.length > 89 ? calculateChange(current, prices[89]) : null;
+
+  // Calculate moving averages
+  const ma7 = calculateMA(prices, 7);
+  const ma30 = calculateMA(prices, 30);
+
+  // Calculate volatility
+  const volatility = calculateVolatility(prices);
+
+  return {
+    commodity: commodity.toLowerCase(),
+    name: data.name,
+    category: info?.category || 'Unknown',
+    current: {
+      price: current,
+      unit: data.unit,
+      date: latest.date,
+    },
+    changes: {
+      day7: change7 !== null ? Math.round(change7 * 100) / 100 : null,
+      day30: change30 !== null ? Math.round(change30 * 100) / 100 : null,
+      day90: change90 !== null ? Math.round(change90 * 100) / 100 : null,
+    },
+    movingAverages: {
+      ma7: ma7 !== null ? Math.round(ma7 * 100) / 100 : null,
+      ma30: ma30 !== null ? Math.round(ma30 * 100) / 100 : null,
+    },
+    volatility: {
+      daily: volatility !== null ? Math.round(volatility * 100) / 100 : null,
+      level: getVolatilityLevel(volatility),
+    },
+    signal: {
+      vs7dma: getSignal(current, ma7),
+      vs30dma: getSignal(current, ma30),
+      trend: getTrend(change7, change30),
+    },
+  };
+}

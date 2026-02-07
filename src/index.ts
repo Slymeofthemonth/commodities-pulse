@@ -11,6 +11,7 @@ import {
   fetchAllCommodities,
   fetchHistorical,
   fetchCommoditiesIndex,
+  fetchAnalysis,
   COMMODITIES,
   COMMODITY_INFO,
 } from './fetchers/alpha-vantage';
@@ -69,6 +70,13 @@ async function main() {
           method: 'POST',
           price: '$0.001',
           description: 'Get the global commodities price index',
+        },
+        {
+          path: '/entrypoints/analysis/invoke',
+          method: 'POST',
+          price: '$0.003',
+          description: 'Enriched analysis: price + 7d/30d/90d changes + moving averages + volatility + trend signals',
+          input: { commodity: 'wti | brent | natural_gas | copper | aluminum | wheat | corn | coffee | cotton | sugar' },
         },
       ],
       free: [
@@ -220,6 +228,46 @@ async function main() {
         'commodities-index',
         fetchCommoditiesIndex,
         300000 // 5 minute cache
+      );
+
+      if (!data) {
+        return { output: { error: 'No data available' } };
+      }
+
+      return {
+        output: {
+          ...data,
+          fetchedAt: new Date().toISOString(),
+        },
+      };
+    },
+  });
+
+  // Analysis endpoint - enriched data with signals ($0.003)
+  addEntrypoint({
+    key: 'analysis',
+    description: 'Get enriched analysis: current price, 7d/30d/90d changes, moving averages, volatility, and trend signals',
+    input: z.object({
+      commodity: z.string().describe('Commodity name (e.g., wti, brent, natural_gas, copper, wheat)'),
+    }),
+    price: '0.003',
+    handler: async (ctx) => {
+      const { commodity } = ctx.input;
+      const key = commodity.toLowerCase().replace(/[- ]/g, '_');
+
+      if (!COMMODITIES[key]) {
+        return {
+          output: {
+            error: 'Unknown commodity',
+            available: Object.keys(COMMODITIES).filter((k) => k !== 'all'),
+          },
+        };
+      }
+
+      const data = await cache.get(
+        `analysis:${key}`,
+        () => fetchAnalysis(key),
+        120000 // 2 minute cache
       );
 
       if (!data) {
