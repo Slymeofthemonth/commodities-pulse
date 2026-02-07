@@ -1,0 +1,21 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "Commodities Pulse",
+  "description": "Real-time commodity prices via x402: WTI, Brent crude, natural gas, copper, aluminum, wheat, corn, coffee, cotton, sugar. Endpoints: price ($0.001), all ($0.005), historical ($0.002), index ($0.001), analysis ($0.003).",
+  "image": "https://commodities-pulse-production.up.railway.app/logo.png",
+  "services": [
+    {
+      "name": "web",
+      "endpoint": "https://commodities-pulse-production.up.railway.app/"
+    },
+    {
+      "name": "x402",
+      "endpoint": "https://commodities-pulse-production.up.railway.app/",
+      "version": "1.0"
+    }
+  ],
+  "x402Support": true,
+  "active": true,
+  "registrations": [],
+  "supportedTrust": ["reputation"]
+}

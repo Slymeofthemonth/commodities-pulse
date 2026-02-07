@@ -16,6 +16,7 @@ import {
   COMMODITY_INFO,
 } from './fetchers/alpha-vantage';
 import { cache } from './cache';
+import agentRegistration from './agent-registration.json';
 
 async function main() {
   const agent = await createAgent({
@@ -37,6 +38,9 @@ async function main() {
       timestamp: new Date().toISOString(),
     })
   );
+
+  // ERC-8004 registration endpoint
+  app.get('/.well-known/agent-registration.json', (c) => c.json(agentRegistration));
 
   // Root endpoint - API overview
   app.get('/', (c) =>
